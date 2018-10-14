@@ -40,11 +40,12 @@ def get_parser():
     parser.add_argument('subcommand')
     parser.add_argument('--reverse', '-r', action='store_true')
     parser.add_argument('--client', '-c', action='store_true')
-    parser.add_argument('--bridge', '-b', action='store')
     parser.add_argument('--addr', '-a', action='store')
     parser.add_argument('--port', '-p', action='store')
     parser.add_argument('--target-addr', '-A', action='store')
     parser.add_argument('--target-port', '-P', action='store')
+    parser.add_argument('--server-addr', '-sa', action='store')
+    parser.add_argument('--server-port', '-sp', action='store')
     return parser
 
 
@@ -54,7 +55,6 @@ def main():
     client_host, client_port = '0.0.0.0', 8888
     server_host, server_port = '0.0.0.0', 8080
     reverse = args.reverse or False
-    url = f'http://{server_host}:{server_port}/aiotunnel'
 
     if args.subcommand == 'client':
         if args.target_port:
@@ -65,6 +65,11 @@ def main():
             client_host = args.addr
         if args.port:
             client_port = args.port
+        if args.server_addr:
+            server_host = args.server_addr
+        if args.server_port:
+            server_port = args.server_port
+        url = f'http://{server_host}:{server_port}/aiotunnel'
         start_tunnel(url, (client_host, client_port), (target_addr, target_port), reverse)
     else:
         if args.addr:
