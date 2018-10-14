@@ -1,4 +1,4 @@
-from aiobridge.cli import main
+from aiotunnel.cli import main
 
 
 if __name__ == '__main__':

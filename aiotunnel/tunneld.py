@@ -1,12 +1,46 @@
+# BSD 3-Clause License
+#
+# Copyright (c) 2018, Andrea Giacomo Baldan
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 import ssl
 import uuid
 import logging
 import asyncio
+from functools import partial
 from collections import namedtuple
 
 from aiohttp import web
 
 from .protocol import TunnelProtocol
+
+
+logger = logging.getLogger(__name__)
 
 # Connection simple abstraction
 Connection = namedtuple('Connection', ('transport', 'channel'))
@@ -41,21 +75,28 @@ class Channel:
 class Handler:
 
     def __init__(self, app, reverse=False):
-        self.loop = app.loop
         self.reverse = reverse
+        self.conn = None
         self.tunnels = {}
         self.app = app
         self.app.add_routes([
-            web.post('/aiobridge', self.post_aiobridge),
-            web.put('/aiobridge/{cid}', self.put_aiobridge),
-            web.get('/aiobridge/{cid}', self.get_aiobridge),
-            web.delete('/aiobridge/{cid}', self.delete_aiobridge)
+            web.post('/aiotunnel', self.post_aiotunnel),
+            web.put('/aiotunnel/{cid}', self.put_aiotunnel),
+            web.get('/aiotunnel/{cid}', self.get_aiotunnel),
+            web.delete('/aiotunnel/{cid}', self.delete_aiotunnel)
         ])
-        self.logger = logging.getLogger('aiobridge.server.Handler')
+        self.logger = logging.getLogger('aiotunnel.tunneld.Handler')
 
     def close_all_tunnels(self):
+        if self.conn:
+            self.conn.close()
         for _, conn in self.tunnels.items():
-            conn.transport.close()
+            if conn.transport is not None:
+                conn.transport.close()
+        pending = asyncio.all_tasks()
+        for task in pending:
+            if not task.cancelled():
+                task.cancel()
 
     async def push_request(self, cid, request):
         if cid not in self.tunnels:
@@ -67,58 +108,63 @@ class Handler:
 
     async def open_connection(self, host, port, channel):
         loop = asyncio.get_running_loop()
-        transport, _ = await loop.create_connection(
+        transport, protocol = await loop.create_connection(
             lambda: TunnelProtocol(loop, channel),
             host, port
         )
+        self.conn = protocol
         return transport
 
     async def create_endpoint(self, host, port, channel):
         # Get a reference to the event loop as we plan to use
         # low-level APIs.
-        self.logger.info("Opening local port %s", port)
         loop = asyncio.get_running_loop()
-        server = await loop.create_server(lambda: TunnelProtocol(loop, channel), host, port)
+        server = await loop.create_server(
+            lambda: TunnelProtocol(loop, channel), host, port, reuse_port=True
+        )
+        self.conn = server
         async with server:
             await server.serve_forever()
 
-    async def post_aiobridge(self, request):
+    async def post_aiotunnel(self, request):
         cid = uuid.uuid4()
         service = await request.text()
         channel = Channel()
-        self.logger.debug("POST /aiobridge/%s HTTP/1.1 200", cid)
+        self.logger.debug("POST /aiotunnel/%s HTTP/1.1 200", cid)
         host, port = service.split(':')
         if self.reverse:
+            self.logger.info("Opening local port %s", port)
             loop = asyncio.get_running_loop()
             loop.create_task(self.create_endpoint(host, int(port), channel))
             self.tunnels[str(cid)] = Connection(None, channel)
         else:
+            self.logger.info("Opening connection with %s:%s", host, port)
             transport = await self.open_connection(host, int(port), channel)
             self.tunnels[str(cid)] = Connection(transport, channel)
         return web.Response(text=str(cid))
 
-    async def put_aiobridge(self, request):
+    async def put_aiotunnel(self, request):
         cid = request.match_info['cid']
         if cid not in self.tunnels:
             return web.Response()
         data = await request.read()
-        self.logger.debug("PUT /aiobridge/%s HTTP/1.1 200 %s", cid, len(data))
+        self.logger.debug("PUT /aiotunnel/%s HTTP/1.1 200 %s", cid, len(data))
         await self.push_request(cid, data)
         return web.Response()
 
-    async def get_aiobridge(self, request):
+    async def get_aiotunnel(self, request):
         cid = request.match_info['cid']
         if cid not in self.tunnels:
             return web.Response()
         result = await self.pull_response(cid)
-        self.logger.debug("GET /aiobridge/%s HTTP/1.1 200 %s", cid, len(result))
+        self.logger.debug("GET /aiotunnel/%s HTTP/1.1 200 %s", cid, len(result))
         return web.Response(body=result)
 
-    async def delete_aiobridge(self, request):
+    async def delete_aiotunnel(self, request):
         cid = request.match_info['cid']
         if cid not in self.tunnels:
             return web.Response()
-        self.logger.debug("DELETE /aiobridge/%s HTTP/1.1 200")
+        self.logger.debug("DELETE /aiotunnel/%s HTTP/1.1 200")
         self.tunnels[cid].transport.close()
         del self.tunnels[cid]
         return web.Response()
@@ -130,15 +176,21 @@ def create_ssl_context(certfile, keyfile):
     return ssl_context
 
 
-def start_server(host, port, reverse=False, certfile=None, keyfile=None):
+async def on_shutdown_coro(app, handler):
+    handler.close_all_tunnels()
+    await app.shutdown()
+
+
+def start_tunneld(host, port, reverse=False, certfile=None, keyfile=None):
     app = web.Application()
     handler = Handler(app, reverse)
+    on_shutdown = partial(on_shutdown_coro, handler=handler)
+    app.on_shutdown.append(on_shutdown)
     try:
-        if certfile and keyfile:
+        if certfile or keyfile:
             ssl_context = create_ssl_context(certfile, keyfile)
             web.run_app(app, host=host, port=port, ssl_context=ssl_context)
         else:
             web.run_app(app, host=host, port=port)
-    except KeyboardInterrupt:
-        handler.close_all_tunnels()
-        app.shutdown()
+    except:
+        logger.info("Shutdown")
