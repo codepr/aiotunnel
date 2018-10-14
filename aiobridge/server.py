@@ -1,11 +1,12 @@
 import ssl
 import uuid
-import socket
 import logging
 import asyncio
 from collections import namedtuple
 
 from aiohttp import web
+
+from .protocol import TunnelProtocol
 
 # Connection simple abstraction
 Connection = namedtuple('Connection', ('transport', 'channel'))
@@ -37,44 +38,11 @@ class Channel:
         return data
 
 
-class TunnelProtocol(asyncio.Protocol):
-
-    def __init__(self, loop, channel):
-        self.loop = loop
-        self.channel = channel
-        self.transport = None
-        self.logger = logging.getLogger('aiobridge.server.TunnelProtocol')
-        self.peername = None
-
-    def connection_made(self, transport):
-        self.peername = peername = transport.get_extra_info('peername')
-        self.logger.debug("Connection made with %s", peername)
-        self.transport = transport
-        sock = transport.get_extra_info('socket')
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        self.loop.create_task(self.async_consume_request())
-
-    def data_received(self, data):
-        self.loop.create_task(self.channel.push_response(data))
-
-    def connection_lost(self, exc):
-        self.logger.debug('The server closed the connection')
-        self.transport.close()
-
-    def eof_received(self):
-        self.logger.debug('No more data to receive')
-        self.transport.close()
-
-    async def async_consume_request(self):
-        while True:
-            request = await self.channel.pull_request()
-            await self.loop.run_in_executor(None, self.transport.write, request)
-
-
 class Handler:
 
-    def __init__(self, app):
+    def __init__(self, app, reverse=False):
         self.loop = app.loop
+        self.reverse = reverse
         self.tunnels = {}
         self.app = app
         self.app.add_routes([
@@ -105,14 +73,28 @@ class Handler:
         )
         return transport
 
+    async def create_endpoint(self, host, port, channel):
+        # Get a reference to the event loop as we plan to use
+        # low-level APIs.
+        self.logger.info("Opening local port %s", port)
+        loop = asyncio.get_running_loop()
+        server = await loop.create_server(lambda: TunnelProtocol(loop, channel), host, port)
+        async with server:
+            await server.serve_forever()
+
     async def post_aiobridge(self, request):
         cid = uuid.uuid4()
         service = await request.text()
         channel = Channel()
         self.logger.debug("POST /aiobridge/%s HTTP/1.1 200", cid)
         host, port = service.split(':')
-        transport = await self.open_connection(host, int(port), channel)
-        self.tunnels[str(cid)] = Connection(transport, channel)
+        if self.reverse:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.create_endpoint(host, int(port), channel))
+            self.tunnels[str(cid)] = Connection(None, channel)
+        else:
+            transport = await self.open_connection(host, int(port), channel)
+            self.tunnels[str(cid)] = Connection(transport, channel)
         return web.Response(text=str(cid))
 
     async def put_aiobridge(self, request):
@@ -148,9 +130,9 @@ def create_ssl_context(certfile, keyfile):
     return ssl_context
 
 
-def start(host, port, certfile=None, keyfile=None):
+def start_server(host, port, reverse=False, certfile=None, keyfile=None):
     app = web.Application()
-    handler = Handler(app)
+    handler = Handler(app, reverse)
     try:
         if certfile and keyfile:
             ssl_context = create_ssl_context(certfile, keyfile)

@@ -1,10 +1,6 @@
 import os
 import logging
 
-from .server import start, Handler, TunnelProtocol
-from .client import LocalServerProtocol, main
-
-
 DEFAULT_FORMAT = os.getenv('LOG_FORMAT', '%(name)s - %(message)s')
 
 LOGLEVEL = os.getenv('LOGLEVEL', 'INFO')
