@@ -29,13 +29,46 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import json
 import logging
 
-DEFAULT_LOGPATH = os.getenv('LOGPATH', './')
+__version__ = '1.1.0'
 
-DEFAULT_FORMAT = os.getenv('LOG_FORMAT', '[%(asctime)s] %(name)s - %(message)s')
+CONFIG = {
+    'logpath': './',
+    'logformat': '[%(asctime)s] %(name)s - %(message)s',
+    'loglevel': 'WARNING',
+    'verbose': False,
+    'server': {
+        'host': '127.0.0.1',
+        'port': 8080,
+        'certfile': None,
+        'keyfile': None,
+        'reverse': False
+    },
+    'client': {
+        'host': '127.0.0.1',
+        'port': 8888,
+        'target_host': None,
+        'target_port': None,
+        'server_host': '127.0.0.1',
+        'server_port': 8080
+    }
+}
 
-LOGLEVEL = os.getenv('LOGLEVEL', 'INFO')
+
+def read_configuration(filepath):
+    global CONFIG
+    CONFIG = json.load(filepath)
+
+
+def set_config_key(key, value):
+    global CONFIG
+    if isinstance(value, dict):
+        CONFIG[key].update(value)
+    else:
+        CONFIG[key] = value
+
 
 LOGLEVEL_MAP = {
     'DEBUG': logging.DEBUG,
@@ -44,24 +77,29 @@ LOGLEVEL_MAP = {
     'ERROR': logging.ERROR
 }
 
-# create module logger
-logger = logging.getLogger('aiotunnel')
-logger.setLevel(logging.DEBUG)
 
-# create file handler which logs even debug messages
-fh = logging.FileHandler(os.path.join(DEFAULT_LOGPATH, 'aiotunnel.log'))
-fh.setLevel(logging.DEBUG)
+def setup_logging():
+    DEFAULT_LOGPATH = os.getenv('LOGPATH', CONFIG['logpath'])
+    DEFAULT_FORMAT = os.getenv('LOG_FORMAT', CONFIG['logformat'])
+    LOGLEVEL = os.getenv('LOGLEVEL', CONFIG['loglevel'])
+    # create module logger
+    logger = logging.getLogger('aiotunnel')
+    logger.setLevel(LOGLEVEL_MAP[LOGLEVEL])
 
-# create console handler with a higher log level
-ch = logging.StreamHandler()
-ch.setLevel(LOGLEVEL_MAP[LOGLEVEL])
+    # create file handler which logs even debug messages
+    fh = logging.FileHandler(os.path.join(DEFAULT_LOGPATH, 'aiotunnel.log'))
+    fh.setLevel(logging.DEBUG)
 
-# create formatter and add it to the handlers
-formatter = logging.Formatter(DEFAULT_FORMAT)
-ch_formatter = logging.Formatter('[%(asctime)s] %(message)s')
-ch.setFormatter(ch_formatter)
-fh.setFormatter(formatter)
+    # create console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(LOGLEVEL_MAP[LOGLEVEL])
 
-# Add stream handler to the logger
-logger.addHandler(ch)
-logger.addHandler(fh)
+    # create formatter and add it to the handlers
+    formatter = logging.Formatter(DEFAULT_FORMAT)
+    ch_formatter = logging.Formatter('[%(asctime)s] %(message)s')
+    ch.setFormatter(ch_formatter)
+    fh.setFormatter(formatter)
+
+    # Add stream handler to the logger
+    logger.addHandler(ch)
+    logger.addHandler(fh)

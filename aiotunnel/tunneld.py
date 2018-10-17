@@ -148,7 +148,6 @@ class Handler:
         if cid not in self.tunnels:
             return web.Response()
         data = await request.read()
-        self.logger.debug("PUT /aiotunnel/%s HTTP/1.1 200 %s", cid, len(data))
         await self.push_request(cid, data)
         return web.Response()
 
@@ -157,14 +156,12 @@ class Handler:
         if cid not in self.tunnels:
             return web.Response()
         result = await self.pull_response(cid)
-        self.logger.debug("GET /aiotunnel/%s HTTP/1.1 200 %s", cid, len(result))
         return web.Response(body=result)
 
     async def delete_aiotunnel(self, request):
         cid = request.match_info['cid']
         if cid not in self.tunnels:
             return web.Response()
-        self.logger.debug("DELETE /aiotunnel/%s HTTP/1.1 200")
         self.tunnels[cid].transport.close()
         del self.tunnels[cid]
         return web.Response()
@@ -189,8 +186,9 @@ def start_tunneld(host, port, reverse=False, certfile=None, keyfile=None):
     try:
         if certfile or keyfile:
             ssl_context = create_ssl_context(certfile, keyfile)
-            web.run_app(app, host=host, port=port, ssl_context=ssl_context)
+            web.run_app(app, host=host, port=port, ssl_context=ssl_context, access_log=logger)
         else:
-            web.run_app(app, host=host, port=port)
+            web.run_app(app, host=host, port=port, access_log=logger,
+                        access_log_format='"%r" %s %b %Tf %a - "%{User-agent}i"')
     except:
         logger.info("Shutdown")

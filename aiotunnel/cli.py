@@ -33,47 +33,73 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import argparse
 from .tunnel import start_tunnel
 from .tunneld import start_tunneld
+from . import CONFIG, read_configuration, set_config_key, setup_logging
 
 
 def get_parser():
     parser = argparse.ArgumentParser(description='aiotunnel CLI aiotunnels')
-    parser.add_argument('subcommand')
-    parser.add_argument('--reverse', '-r', action='store_true')
-    parser.add_argument('--client', '-c', action='store_true')
-    parser.add_argument('--addr', '-a', action='store')
-    parser.add_argument('--port', '-p', action='store')
-    parser.add_argument('--target-addr', '-A', action='store')
-    parser.add_argument('--target-port', '-P', action='store')
-    parser.add_argument('--server-addr', '-sa', action='store')
-    parser.add_argument('--server-port', '-sp', action='store')
+    parser.add_argument('subcommand', help='Runtime mode, can be either client or server')
+    parser.add_argument('--file', '-f', nargs='?',
+                        type=argparse.FileType('r'), help='Configuration file')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        default=False, help='Run with more logs')
+    parser.add_argument('--reverse', '-r', action='store_true',
+                        help='Run in reverse mode e.g. client connect to the '
+                        'service to expose and ask the server to open a port')
+    parser.add_argument('--client', '-c', action='store_true', help='Run in client mode')
+    parser.add_argument('--addr', '-a', action='store', help='Set address to listen to')
+    parser.add_argument('--port', '-p', action='store', help='Set the port to open')
+    parser.add_argument('--target-addr', '-A', action='store', help='Set the target to expose/reach')
+    parser.add_argument('--target-port', '-P', action='store', help='Set the port for target-addr')
+    parser.add_argument('--server-addr', '-sa', action='store', help='Set the target address')
+    parser.add_argument('--server-port', '-sp', action='store', help='Set the target port')
     return parser
 
 
 def main():
     parser = get_parser()
     args = parser.parse_args()
-    client_host, client_port = '0.0.0.0', 8888
-    server_host, server_port = '0.0.0.0', 8080
-    reverse = args.reverse or False
+
+    if args.file:
+        config_file = args.file
+        read_configuration(config_file)
+
+    if args.verbose:
+        set_config_key('verbose', args.verbose)
+        set_config_key('loglevel', 'DEBUG')
+
+    setup_logging()
+
+    client_host, client_port = CONFIG['client']['host'], CONFIG['client']['port']
+    server_host, server_port = CONFIG['server']['host'], CONFIG['server']['port']
+    reverse = args.reverse or CONFIG['reverse']
 
     if args.subcommand == 'client':
         if args.target_port:
             target_port = int(args.target_port)
+            set_config_key('client', {'target_port': target_port})
         if args.target_addr:
             target_addr = args.target_addr
+            set_config_key('client', {'target_host': target_addr})
         if args.addr:
             client_host = args.addr
+            set_config_key('client', {'host': client_host})
         if args.port:
             client_port = args.port
+            set_config_key('client', {'port': client_port})
         if args.server_addr:
             server_host = args.server_addr
+            set_config_key('server', {'host': server_host})
         if args.server_port:
             server_port = args.server_port
+            set_config_key('server', {'port': server_port})
         url = f'http://{server_host}:{server_port}/aiotunnel'
         start_tunnel(url, (client_host, client_port), (target_addr, target_port), reverse)
     else:
         if args.addr:
             server_host = args.addr
+            set_config_key('server', {'host': server_host})
         if args.port:
             server_port = args.port
+            set_config_key('server', {'port': server_port})
         start_tunneld(server_host, server_port, reverse)
