@@ -28,6 +28,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import ssl
 import asyncio
 import logging
 
@@ -39,7 +40,7 @@ from .protocol import LocalTunnelProtocol
 logger = logging.getLogger(__name__)
 
 
-async def create_endpoint(url, client_addr, target_addr):
+async def create_endpoint(url, client_addr, target_addr, ssl_context=None):
     """Create a server endpoint TCP.
 
     Args:
@@ -59,18 +60,19 @@ async def create_endpoint(url, client_addr, target_addr):
     host, port = client_addr
     target_host, target_port = target_addr
     remote_host = target_host + ':' + str(target_port)
-    logger.info("Opening local port %s and %s:%s over HTTP", port, target_host, target_port)
+    scheme = 'HTTPS' if ssl_context else 'HTTP'
+    logger.info("Opening local port %s and %s:%s over %s", port, target_host, target_port, scheme)
     loop = asyncio.get_running_loop()
     # Start the server and serve forever
     server = await loop.create_server(
-        lambda: LocalTunnelProtocol(loop, remote_host, url),
+        lambda: LocalTunnelProtocol(loop, remote_host, url, ssl_context),
         host, port
     )
     async with server:
         await server.serve_forever()
 
 
-async def open_connection(url, client_addr, target_addr):
+async def open_connection(url, client_addr, target_addr, ssl_context=None):
     """Open a TCP connection
 
     Args:
@@ -88,11 +90,12 @@ async def open_connection(url, client_addr, target_addr):
 
     remote = f'{client_addr[0]}:{client_addr[1]}'
     host, port = target_addr
-    logger.info("Opening a connection with %s:%s and %s over HTTP", host, port, remote)
+    scheme = 'HTTPS' if ssl_context else 'HTTP'
+    logger.info("Opening a connection with %s:%s and %s over %s", host, port, remote, scheme)
     loop = asyncio.get_running_loop()
     on_con_lost = loop.create_future()
     transport, _ = await loop.create_connection(
-        lambda: LocalTunnelProtocol(loop, remote, url, on_con_lost),
+        lambda: LocalTunnelProtocol(loop, remote, url, on_con_lost, ssl_context),
         host, port
     )
     try:
@@ -101,11 +104,16 @@ async def open_connection(url, client_addr, target_addr):
         transport.close()
 
 
-def start_tunnel(url, client_addr, target_addr, reverse=False):
+def start_tunnel(url, client_addr, target_addr,
+                 reverse=False, cafile=None, certfile=None, keyfile=None):
+    ssl_context = None
+    if cafile:
+        ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH, cafile=cafile)
+        ssl_context.load_cert_chain(certfile, keyfile)
     try:
         if not reverse:
-            asyncio.run(create_endpoint(url, client_addr, target_addr))
+            asyncio.run(create_endpoint(url, client_addr, target_addr, ssl_context))
         else:
-            asyncio.run(open_connection(url, client_addr, target_addr))
+            asyncio.run(open_connection(url, client_addr, target_addr, ssl_context))
     except:
         pass

@@ -87,12 +87,13 @@ class TunnelProtocol(BaseTunnelProtocol):
 
 class LocalTunnelProtocol(BaseTunnelProtocol):
 
-    def __init__(self, loop, remote_host, url, on_conn_lost=None):
+    def __init__(self, loop, remote_host, url, on_conn_lost=None, ssl_context=None):
         self.cid = None
         self.url = url
         self.remote_host = remote_host
         self.write_queue = asyncio.Queue()
         self.on_conn_lost = on_conn_lost
+        self.ssl_context = ssl_context
         self.logger = logging.getLogger('aiotunnel.protocol.LocalTunnelProtocol')
         super().__init__(loop)
 
@@ -113,7 +114,7 @@ class LocalTunnelProtocol(BaseTunnelProtocol):
         remote = self.remote_host.encode()
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(self.url, data=remote) as resp:
+                async with session.post(self.url, data=remote, ssl_context=self.ssl_context) as resp:
                     cid = await resp.text()
         except (aiohttp.ClientError, asyncio.TimeoutError):
             self.logger.debug("Cannot communicate with %s", self.url)
@@ -123,7 +124,8 @@ class LocalTunnelProtocol(BaseTunnelProtocol):
             await asyncio.sleep(5)
         else:
             self.cid = cid
-            self.logger.info("%s over HTTP to %s", self.remote_host, self.url)
+            scheme = 'HTTPS' if self.ssl_context else 'HTTP'
+            self.logger.info("%s over %s to %s", self.remote_host, scheme, self.url)
             self.logger.info("Obtained a client id: %s", cid)
             self.loop.create_task(self.async_write_data())
             self.loop.create_task(self.async_read_data())
@@ -131,7 +133,7 @@ class LocalTunnelProtocol(BaseTunnelProtocol):
     async def async_close_remote_connection(self):
         try:
             async with aiohttp.ClientSession() as session:
-                await session.delete(f'{self.url}/{self.cid}')
+                await session.delete(f'{self.url}/{self.cid}', ssl_context=self.ssl_context)
         except (aiohttp.ClientError, asyncio.TimeoutError):
             self.logger.debug("Cannot communicate with %s", self.url)
             await asyncio.sleep(5)
@@ -144,7 +146,7 @@ class LocalTunnelProtocol(BaseTunnelProtocol):
             data = await self.write_queue.get()
             try:
                 async with aiohttp.ClientSession() as session:
-                    await session.put(f'{self.url}/{self.cid}', data=data)
+                    await session.put(f'{self.url}/{self.cid}', data=data, ssl_context=self.ssl_context)
             except (aiohttp.ClientError, asyncio.TimeoutError):
                 self.logger.debug("Cannot communicate with %s", self.url)
                 await asyncio.sleep(5)
@@ -156,7 +158,7 @@ class LocalTunnelProtocol(BaseTunnelProtocol):
         while not self._shutdown.is_set():
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(f'{self.url}/{self.cid}') as resp:
+                    async with session.get(f'{self.url}/{self.cid}', ssl_context=self.ssl_context) as resp:
                         data = await resp.read()
                         self.transport.write(data)
             except (aiohttp.ClientError, asyncio.TimeoutError):

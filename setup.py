@@ -7,7 +7,7 @@ required = ['aiohttp']
 
 setup(
     name='aiotunnel',
-    version='1.1.0',
+    version='1.2.0',
     description='HTTP tunnel on top of aiohttp and asyncio',
     long_description=readme,
     author='Andrea Giacomo Baldan',

@@ -82,6 +82,27 @@ doe@10.5.0.240:~$ docker build -t aiotunnel /path/to/aiotunnel
 doe@10.5.0.240:~$ docker run --rm --network host aiotunnel python aiotunnel.py client --server-addr 10.5.0.10 --server-port 8080 -A localhost -p 22 -r
 ```
 
+### Security
+
+`SSL/TLS` is supported, just set certificates cain and ca in the configuration or by the CLI process
+to encrypt the communication and use HTTPS (defaulting on port 8443 instead of 8080)
+
+```sh
+doe@10.5.0.10:~$ python aiotunnel.py server -r --ca /path/to/ca.crt --cert /path/to/cert.crt --key
+/path/to/keyfile.key
+======== Running on https://0.0.0.0:8443 ========
+```
+
+And client side
+
+```sh
+doe@10.5.0.240:~$ python aiotunnel.py client -A 127.0.0.1 -P 22 --ca /path/to/ca.crt --cert
+/path/to/cert.crt --key /path/to/keyfile.key
+[2018-10-18 22:20:45,806] Opening a connection with 127.0.0.1:22 and 0.0.0.0:8888 over HTTPS
+[2018-10-18 22:20:45,831] 0.0.0.0:8888 over HTTPS to https://10.5.0.10:8443/aiotunnel
+[2018-10-18 22:20:45,832] Obtained a client id: aeb7dfc4-3da3-4wc1-b769-n81621db96eb
+```
+
 ## Installation
 
 Clone the repository and install it locally or play with it using `python -i` or `ipython`.

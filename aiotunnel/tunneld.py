@@ -37,6 +37,7 @@ from collections import namedtuple
 
 from aiohttp import web
 
+from . import CONFIG
 from .protocol import TunnelProtocol
 
 
@@ -130,7 +131,6 @@ class Handler:
         cid = uuid.uuid4()
         service = await request.text()
         channel = Channel()
-        self.logger.debug("POST /aiotunnel/%s HTTP/1.1 200", cid)
         host, port = service.split(':')
         if self.reverse:
             self.logger.info("Opening local port %s", port)
@@ -167,8 +167,8 @@ class Handler:
         return web.Response()
 
 
-def create_ssl_context(certfile, keyfile):
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+def create_ssl_context(cafile, certfile, keyfile):
+    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=cafile)
     ssl_context.load_cert_chain(certfile, keyfile)
     return ssl_context
 
@@ -178,17 +178,20 @@ async def on_shutdown_coro(app, handler):
     await app.shutdown()
 
 
-def start_tunneld(host, port, reverse=False, certfile=None, keyfile=None):
+def start_tunneld(host, port, reverse=False, cafile=None, certfile=None, keyfile=None):
     app = web.Application()
     handler = Handler(app, reverse)
     on_shutdown = partial(on_shutdown_coro, handler=handler)
     app.on_shutdown.append(on_shutdown)
     try:
-        if certfile or keyfile:
-            ssl_context = create_ssl_context(certfile, keyfile)
+        if cafile:
+            ssl_context = create_ssl_context(cafile, certfile, keyfile)
             web.run_app(app, host=host, port=port, ssl_context=ssl_context, access_log=logger)
         else:
             web.run_app(app, host=host, port=port, access_log=logger,
                         access_log_format='"%r" %s %b %Tf %a - "%{User-agent}i"')
     except:
-        logger.info("Shutdown")
+        if CONFIG['verbose']:
+            logger.critical('Shutdown')
+        else:
+            logger.info("Shutdown")

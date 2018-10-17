@@ -53,6 +53,9 @@ def get_parser():
     parser.add_argument('--target-port', '-P', action='store', help='Set the port for target-addr')
     parser.add_argument('--server-addr', '-sa', action='store', help='Set the target address')
     parser.add_argument('--server-port', '-sp', action='store', help='Set the target port')
+    parser.add_argument('--ca', action='store', help='Set the cert. authority file')
+    parser.add_argument('--cert', action='store', help='Set the crt file for SSL/TLS encryption')
+    parser.add_argument('--key', action='store', help='Set the key file for SSL/TLS encryption')
     return parser
 
 
@@ -70,6 +73,16 @@ def main():
 
     setup_logging()
 
+    # SSL/TLS certificates
+    cafile = args.ca
+    certfile = args.cert
+    keyfile = args.key
+
+    if cafile or (certfile and keyfile):
+        set_config_key('client', {'server_port': 8443})
+        set_config_key('server', {'port': 8443})
+
+    # Connection directives, addresses and targets
     client_host, client_port = CONFIG['client']['host'], CONFIG['client']['port']
     server_host, server_port = CONFIG['server']['host'], CONFIG['server']['port']
     reverse = args.reverse or CONFIG['reverse']
@@ -93,8 +106,10 @@ def main():
         if args.server_port:
             server_port = args.server_port
             set_config_key('server', {'port': server_port})
-        url = f'http://{server_host}:{server_port}/aiotunnel'
-        start_tunnel(url, (client_host, client_port), (target_addr, target_port), reverse)
+        scheme = 'https' if cafile else 'http'
+        url = f'{scheme}://{server_host}:{server_port}/aiotunnel'
+        start_tunnel(url, (client_host, client_port), (target_addr, target_port),
+                     reverse, cafile=cafile, certfile=certfile, keyfile=keyfile)
     else:
         if args.addr:
             server_host = args.addr
@@ -102,4 +117,5 @@ def main():
         if args.port:
             server_port = args.port
             set_config_key('server', {'port': server_port})
-        start_tunneld(server_host, server_port, reverse)
+        start_tunneld(server_host, server_port, reverse,
+                      cafile=cafile, certfile=certfile, keyfile=keyfile)

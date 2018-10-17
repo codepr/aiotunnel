@@ -3,6 +3,7 @@
 (Oct 18, 2018)
 
 - Added basic configuration
+- Support for SSL/TLS communication
 - Verbose flag
 
 (Oct 14, 2018)
