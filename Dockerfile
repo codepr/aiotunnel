@@ -4,4 +4,4 @@ COPY requirements.txt /aiotunnel
 RUN pip install -r /aiotunnel/requirements.txt --no-cache-dir
 ADD . /aiotunnel
 WORKDIR /aiotunnel
-CMD python aiotunnel.py server -r
+CMD aiotunnel server -r

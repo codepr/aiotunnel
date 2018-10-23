@@ -22,7 +22,7 @@ So just run the `tunneld` on the server at `10.5.0.10` (you probably'll want to 
 NOHUP or by creating a systemd service) in reverse mode:
 
 ```sh
-doe@10.5.0.10:~$ python aiotunnel.py server -r
+doe@10.5.0.10:~$ aiotunnel server -r
 ======== Running on http://0.0.0.0:8080 ========
 (Press CTRL+C to quit)
 ```
@@ -31,7 +31,7 @@ On the target machine at `10.5.0.240` run the client bound to the service we wan
 this case but could be anything):
 
 ```sh
-doe@10.5.0.240:~$ python aiotunnel.py client --server-addr 10.5.0.10 --server-port 8080 -A localhost -p 22 -r
+doe@10.5.0.240:~$ aiotunnel client --server-addr 10.5.0.10 --server-port 8080 -A localhost -p 22 -r
 [2018-10-14 22:20:45,806] Opening a connection with 127.0.0.1:22 and 0.0.0.0:8888 over HTTP
 [2018-10-14 22:20:45,831] 0.0.0.0:8888 over HTTP to http://10.5.0.10:8080/aiotunnel
 [2018-10-14 22:20:45,832] Obtained a client id: aeb7cfc6-3de3-4bc1-b769-b81641d496eb
@@ -61,7 +61,7 @@ communicate with him by using HTTP requests:
 So on our known server located at `10.5.0.10` we start a `tunneld` process
 
 ```sh
-doe@10.5.0.10:~$ python aiotunnel.py server
+doe@10.5.0.10:~$ aiotunnel server
 ======== Running on http://0.0.0.0:8080 ========
 (Press CTRL+C to quit)
 ```
@@ -69,17 +69,17 @@ doe@10.5.0.10:~$ python aiotunnel.py server
 On the network-constrainted machine we start a `tunnel` instance
 
 ```sh
-doe@10.5.0.5:~$ python aiotunnel.py -A 10.0.5.240 -P 22
+doe@10.5.0.5:~$ aiotunnel -A 10.0.5.240 -P 22
 [2018-10-15 00:58:41,744] Opening local port 8888 and 10.0.5.240:22 over HTTP
 ```
 And we're good to go.
 
 It's possible to use the `Dockerfile` to build an image and run it in a container, default start
-with a command `python aiotunnel.py server -r`, easily overridable.
+with a command `aiotunnel server -r`, easily overridable.
 
 ```sh
 doe@10.5.0.240:~$ docker build -t aiotunnel /path/to/aiotunnel
-doe@10.5.0.240:~$ docker run --rm --network host aiotunnel python aiotunnel.py client --server-addr 10.5.0.10 --server-port 8080 -A localhost -p 22 -r
+doe@10.5.0.240:~$ docker run --rm --network host aiotunnel aiotunnel client --server-addr 10.5.0.10 --server-port 8080 -A localhost -p 22 -r
 ```
 
 ### Security
@@ -88,7 +88,7 @@ doe@10.5.0.240:~$ docker run --rm --network host aiotunnel python aiotunnel.py c
 to encrypt the communication and use HTTPS (defaulting on port 8443 instead of 8080)
 
 ```sh
-doe@10.5.0.10:~$ python aiotunnel.py server -r --ca /path/to/ca.crt --cert /path/to/cert.crt --key
+doe@10.5.0.10:~$ aiotunnel server -r --ca /path/to/ca.crt --cert /path/to/cert.crt --key
 /path/to/keyfile.key
 ======== Running on https://0.0.0.0:8443 ========
 ```
@@ -96,7 +96,7 @@ doe@10.5.0.10:~$ python aiotunnel.py server -r --ca /path/to/ca.crt --cert /path
 And client side
 
 ```sh
-doe@10.5.0.240:~$ python aiotunnel.py client -A 127.0.0.1 -P 22 --ca /path/to/ca.crt --cert
+doe@10.5.0.240:~$ aiotunnel client -A 127.0.0.1 -P 22 --ca /path/to/ca.crt --cert
 /path/to/cert.crt --key /path/to/keyfile.key
 [2018-10-18 22:20:45,806] Opening a connection with 127.0.0.1:22 and 0.0.0.0:8888 over HTTPS
 [2018-10-18 22:20:45,831] 0.0.0.0:8888 over HTTPS to https://10.5.0.10:8443/aiotunnel

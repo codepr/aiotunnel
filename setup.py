@@ -14,5 +14,5 @@ setup(
     author_email='a.g.baldan@gmail.com',
     packages=['aiotunnel'],
     install_requires=required,
-    scripts=['aiotunnel.py']
+    scripts=['scripts/aiotunnel']
 )
