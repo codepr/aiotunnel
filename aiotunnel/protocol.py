@@ -82,7 +82,7 @@ class TunnelProtocol(BaseTunnelProtocol):
             except asyncio.CancelledError:
                 self.logger.debug("Cancelled pull task")
             else:
-                await self.loop.run_in_executor(None, self.transport.write, request)
+                self.transport.write(request)
 
 
 class LocalTunnelProtocol(BaseTunnelProtocol):
