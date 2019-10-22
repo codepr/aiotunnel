@@ -65,7 +65,7 @@ async def create_endpoint(url, client_addr, target_addr, ssl_context=None):
     loop = asyncio.get_running_loop()
     # Start the server and serve forever
     server = await loop.create_server(
-        lambda: LocalTunnelProtocol(loop, remote_host, url, ssl_context),
+        lambda: LocalTunnelProtocol(remote_host, url, ssl_context),
         host, port
     )
     async with server:
@@ -95,7 +95,7 @@ async def open_connection(url, client_addr, target_addr, ssl_context=None):
     loop = asyncio.get_running_loop()
     on_con_lost = loop.create_future()
     transport, _ = await loop.create_connection(
-        lambda: LocalTunnelProtocol(loop, remote, url, on_con_lost, ssl_context),
+        lambda: LocalTunnelProtocol(remote, url, on_con_lost, ssl_context),
         host, port
     )
     try:

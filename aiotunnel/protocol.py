@@ -37,8 +37,8 @@ import aiohttp
 
 class BaseTunnelProtocol(asyncio.Protocol):
 
-    def __init__(self, loop):
-        self.loop = loop
+    def __init__(self):
+        self.loop = asyncio.get_running_loop()
         self.transport = None
         self._shutdown = asyncio.Event()
         self.logger = logging.getLogger('aiotunnel.protocol.BaseTunnelProtocol')
@@ -63,10 +63,10 @@ class BaseTunnelProtocol(asyncio.Protocol):
 
 class TunnelProtocol(BaseTunnelProtocol):
 
-    def __init__(self, loop, channel):
+    def __init__(self, channel):
         self.channel = channel
         self.logger = logging.getLogger('aiotunnel.protocol.TunnelProtocol')
-        super().__init__(loop)
+        super().__init__()
 
     def connection_made(self, transport):
         super().connection_made(transport)
@@ -87,7 +87,7 @@ class TunnelProtocol(BaseTunnelProtocol):
 
 class LocalTunnelProtocol(BaseTunnelProtocol):
 
-    def __init__(self, loop, remote_host, url, on_conn_lost=None, ssl_context=None):
+    def __init__(self, remote_host, url, on_conn_lost=None, ssl_context=None):
         self.cid = None
         self.url = url
         self.remote_host = remote_host
@@ -95,7 +95,7 @@ class LocalTunnelProtocol(BaseTunnelProtocol):
         self.on_conn_lost = on_conn_lost
         self.ssl_context = ssl_context
         self.logger = logging.getLogger('aiotunnel.protocol.LocalTunnelProtocol')
-        super().__init__(loop)
+        super().__init__()
 
     def connection_made(self, transport):
         super().connection_made(transport)

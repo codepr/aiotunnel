@@ -110,7 +110,7 @@ class Handler:
     async def open_connection(self, host, port, channel):
         loop = asyncio.get_running_loop()
         transport, protocol = await loop.create_connection(
-            lambda: TunnelProtocol(loop, channel),
+            lambda: TunnelProtocol(channel),
             host, port
         )
         self.conn = protocol
@@ -121,7 +121,7 @@ class Handler:
         # low-level APIs.
         loop = asyncio.get_running_loop()
         server = await loop.create_server(
-            lambda: TunnelProtocol(loop, channel), host, port, reuse_port=True
+            lambda: TunnelProtocol(channel), host, port, reuse_port=True
         )
         self.conn = server
         async with server:
