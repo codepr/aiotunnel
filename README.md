@@ -21,9 +21,11 @@ address, it will retrieve all incoming commands via HTTP GET requests to
 our known server.
 
 ```
-    10.0.50.15 <-------------> (TCP) 8888:10.5.0.10:8080 (HTTP) <--------------> 10.5.0.240:22
+    10.0.50.15 <---------> (TCP) 8888:10.5.0.10:8080 (HTTP) <---------> 10.5.0.240:22
 
-     ssh 10.5.0.10 -p 8888           aiotunnel server -r      aiotunnel client --server-addr 10.5.0.10 --server-port 8080 -A localhost -P 22 -r
+     ssh 10.5.0.10 -p 8888        aiotunnel server -r      aiotunnel client --server-addr 10.5.0.10 \
+                                                                            --server-port 8080 \
+                                                                            -A localhost -P 22 -r
 ```
 
 So just run the `tunneld` on the server at `10.5.0.10` (you probably want to
