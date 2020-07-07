@@ -32,7 +32,7 @@ import os
 import json
 import logging
 
-__version__ = '1.2.0'
+__version__ = '1.2.1'
 
 CONFIG = {
     'logpath': './',
