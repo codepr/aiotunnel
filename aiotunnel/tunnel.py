@@ -61,7 +61,8 @@ async def create_endpoint(url, client_addr, target_addr, ssl_context=None):
     target_host, target_port = target_addr
     remote_host = target_host + ':' + str(target_port)
     scheme = 'HTTPS' if ssl_context else 'HTTP'
-    logger.info("Opening local port %s and %s:%s over %s", port, target_host, target_port, scheme)
+    logger.info("Listening on port %s", port)
+    logger.info("Opening %s connection to %s:%s", scheme, target_host, target_port)
     loop = asyncio.get_running_loop()
     # Start the server and serve forever
     server = await loop.create_server(
@@ -91,7 +92,8 @@ async def open_connection(url, client_addr, target_addr, ssl_context=None):
     remote = f'{client_addr[0]}:{client_addr[1]}'
     host, port = target_addr
     scheme = 'HTTPS' if ssl_context else 'HTTP'
-    logger.info("Opening a connection with %s:%s and %s over %s", host, port, remote, scheme)
+    logger.info("Opening a TCP connection to %s:%s (target)", host, port)
+    logger.info("Opening %s connection to %s (source)", scheme, remote)
     loop = asyncio.get_running_loop()
     on_con_lost = loop.create_future()
     try:

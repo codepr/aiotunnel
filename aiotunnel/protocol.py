@@ -80,7 +80,8 @@ class TunnelProtocol(BaseTunnelProtocol):
             try:
                 request = await self.channel.pull_request()
             except asyncio.CancelledError:
-                self.logger.debug("Cancelled pull task")
+                self.logger.debug("Closing")
+                self.close()
             else:
                 self.transport.write(request)
 
