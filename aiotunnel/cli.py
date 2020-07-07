@@ -85,7 +85,7 @@ def main():
     # Connection directives, addresses and targets
     client_host, client_port = CONFIG['client']['host'], CONFIG['client']['port']
     server_host, server_port = CONFIG['server']['host'], CONFIG['server']['port']
-    reverse = args.reverse or CONFIG['reverse']
+    reverse = args.reverse or CONFIG.get('reverse', False)
 
     if args.subcommand == 'client':
         if args.target_port:

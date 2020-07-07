@@ -175,7 +175,7 @@ def create_ssl_context(cafile, certfile, keyfile):
 
 async def on_shutdown_coro(app, handler):
     handler.close_all_tunnels()
-    await app.shutdown()
+    # await app.shutdown()
 
 
 def start_tunneld(host, port, reverse=False, cafile=None, certfile=None, keyfile=None):

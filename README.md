@@ -18,7 +18,7 @@ server on which we have free access located at `10.5.0.10`; we really don't know
 once set the server address, it will retrieve all incoming commands via HTTP GET requests to the our
 known server.
 
-So just run the `tunneld` on the server at `10.5.0.10` (you probably'll want to daemonize it through
+So just run the `tunneld` on the server at `10.5.0.10` (you probably want to daemonize it through
 NOHUP or by creating a systemd service) in reverse mode:
 
 ```sh
@@ -31,7 +31,7 @@ On the target machine at `10.5.0.240` run the client bound to the service we wan
 this case but could be anything):
 
 ```sh
-doe@10.5.0.240:~$ aiotunnel client --server-addr 10.5.0.10 --server-port 8080 -A localhost -p 22 -r
+doe@10.5.0.240:~$ aiotunnel client --server-addr 10.5.0.10 --server-port 8080 -A localhost -P 22 -r
 [2018-10-14 22:20:45,806] Opening a connection with 127.0.0.1:22 and 0.0.0.0:8888 over HTTP
 [2018-10-14 22:20:45,831] 0.0.0.0:8888 over HTTP to http://10.5.0.10:8080/aiotunnel
 [2018-10-14 22:20:45,832] Obtained a client id: aeb7cfc6-3de3-4bc1-b769-b81641d496eb
